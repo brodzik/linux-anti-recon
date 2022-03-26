@@ -7,10 +7,11 @@ all:
 
 clean:
 	$(MAKE) -C $(BUILD) M=$(PWD) clean
+	-sudo rmmod anti-recon
+	sudo dmesg --clear
 
 run:
+	-sudo rmmod anti-recon
 	sudo dmesg --clear
-	-sudo rmmod anti-recon
 	sudo insmod anti-recon.ko
-	-sudo rmmod anti-recon
 	sudo dmesg
