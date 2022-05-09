@@ -4,6 +4,7 @@
  *  https://elixir.bootlin.com/linux/latest/source/include/linux/netfilter.h
  *  https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/tcp.h
  *  https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/ip.h
+ *  https://elixir.bootlin.com/linux/latest/source/include/linux/skbuff.h
  */
 
 #include <linux/init.h>
@@ -26,7 +27,26 @@ unsigned int hook_funcion(void *priv, struct sk_buff *skb, const struct nf_hook_
     struct tcphdr *tcp = tcp_hdr(skb);
     struct iphdr *ip = ip_hdr(skb);
 
-    pr_info("src: %pI4 %d dest: %pI4 %d", &ip->saddr, ntohs(tcp->source), &ip->daddr, ntohs(tcp->dest));
+    if (ntohs(tcp->source) == 80)
+    {
+        skb_linearize(skb);
+
+        pr_info("src: %pI4 %d dest: %pI4 %d", &ip->saddr, ntohs(tcp->source), &ip->daddr, ntohs(tcp->dest));
+        pr_info("len: %d", skb->len);
+        pr_info("data len: %d", skb->data_len);
+        pr_info("data:");
+
+        int i;
+        for (i = 0; i < skb->len; ++i)
+        {
+            if (i % 16 == 0)
+            {
+                pr_cont("\n");
+            }
+
+            pr_cont("%c ", skb->data[i]);
+        }
+    }
 
     return NF_ACCEPT;
 }
@@ -39,9 +59,9 @@ int init_module()
     struct net *n;
 #endif
     nfho.hook = hook_funcion;
-    nfho.pf = NFPROTO_IPV4;
+    nfho.pf = PF_INET;
     nfho.hooknum = NF_INET_POST_ROUTING;
-    nfho.priority = NF_IP_PRI_MANGLE;
+    nfho.priority = NF_IP_PRI_FIRST;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
     for_each_net(n) ret += nf_register_net_hook(n, &nfho);
 #else
