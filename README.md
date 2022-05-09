@@ -8,4 +8,5 @@ Linux anti-reconnaissance kernel module. Mitigates OS fingerprinting and service
 ## Commands
 - `make` - build module
 - `make run` - load module
+- dmesg - print kernel log
 - `make clean` - unload module and clean directory

@@ -24,29 +24,53 @@ static struct nf_hook_ops nfho;
 
 unsigned int hook_funcion(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
-    struct tcphdr *tcp = tcp_hdr(skb);
-    struct iphdr *ip = ip_hdr(skb);
-
-    if (ntohs(tcp->source) == 80)
+    if (skb_is_nonlinear(skb))
     {
         skb_linearize(skb);
+    }
 
-        pr_info("src: %pI4 %d dest: %pI4 %d", &ip->saddr, ntohs(tcp->source), &ip->daddr, ntohs(tcp->dest));
-        pr_info("len: %d", skb->len);
-        pr_info("data len: %d", skb->data_len);
-        pr_info("data:");
+    struct iphdr *ip = ip_hdr(skb);
+    struct tcphdr *tcp = tcp_hdr(skb);
 
-        int i;
-        for (i = 0; i < skb->len; ++i)
+    if (ntohs(tcp->source) == 22 && skb->len > 0)
+    {
+        char *p = (char *)((char *)tcp + (unsigned int)(tcp->doff * 4));
+
+        char *template = "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.4";
+        char *x;
+
+        while ((x = strstr(p, template)) != NULL)
         {
-            if (i % 16 == 0)
-            {
-                pr_cont("\n");
-            }
-
-            pr_cont("%c ", skb->data[i]);
+            strncpy(x, "SSH-1.0-OpenSSH_6.3p1 Debian-3debian0.3", strlen(template));
         }
     }
+
+    if (ntohs(tcp->source) == 80 && skb->len > 0)
+    {
+        pr_info("src: %pI4 %d dest: %pI4 %d", &ip->saddr, ntohs(tcp->source), &ip->daddr, ntohs(tcp->dest));
+        pr_info("len: %d", skb->len);
+        pr_info("skb checksum: %d", skb->csum);
+        pr_info("tcp checksum: %d", tcp->check);
+        pr_info("ip checksum: %d", ip->check);
+        pr_info("data:");
+
+        char *p = (char *)((char *)tcp + (unsigned int)(tcp->doff * 4));
+
+        char *template = "Apache/2.4.41 (Ubuntu)";
+        char *x;
+
+        while ((x = strstr(p, template)) != NULL)
+        {
+            strncpy(x, "nginx/1.3.15 (Debian) ", strlen(template));
+        }
+    }
+
+    /*if (ip)
+    {
+        ip->ttl = 128;
+        ip->check = 0;
+        ip->check = ip_fast_csum((unsigned char *)ip, ip->ihl);
+    }*/
 
     return NF_ACCEPT;
 }
