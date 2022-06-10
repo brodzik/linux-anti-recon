@@ -23,7 +23,7 @@ MODULE_DESCRIPTION("Anti-reconnaissance kernel module.");
 
 static struct nf_hook_ops nfho;
 
-unsigned int hook_funcion(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
+unsigned int hook_function(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
     if (skb_is_nonlinear(skb))
     {
@@ -104,7 +104,7 @@ int init_module()
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
     struct net *n;
 #endif
-    nfho.hook = hook_funcion;
+    nfho.hook = hook_function;
     nfho.pf = PF_INET;
     nfho.hooknum = NF_INET_POST_ROUTING;
     nfho.priority = NF_IP_PRI_FIRST;
