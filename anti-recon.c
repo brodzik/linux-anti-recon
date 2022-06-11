@@ -74,6 +74,56 @@ unsigned int hook_function(void *priv, struct sk_buff *skb, const struct nf_hook
         }
     }
 
+    if (ntohs(tcp->source) == 80 && skb->len > 0)
+    {
+        uint8_t *p = (uint8_t *)tcp + 20;
+        uint8_t *end = (uint8_t *)tcp + tcp->doff * 4;
+        pr_info("TCP Options length: %d", end - p);
+        while (p < end)
+        {
+            uint8_t kind = *p++;
+            if (kind == 0)
+            {
+                pr_info("end of options");
+                break;
+            }
+            if (kind == 1)
+            {
+                pr_info("NOP");
+                continue;
+            }
+            uint8_t length = *p++;
+            if (kind == 2)
+            {
+                uint16_t mss = ntohs(*(uint16_t *)p);
+                pr_info("MSS: %d, len: %d", mss, length);
+            }
+            if (kind == 3)
+            {
+                uint8_t ws = *(uint8_t *)p;
+                pr_info("WS: %d, len: %d", ws, length);
+            }
+            if (kind == 4)
+            {
+                pr_info("SACK permitted, len: %d", length);
+            }
+            if (kind == 5)
+            {
+                pr_info("SACK, len: 8^n");
+            }
+            if (kind == 8)
+            {
+                pr_info("Timestamps, len: %d", length);
+            }
+            if (kind == 34)
+            {
+                // not gonna happen
+                pr_info("Fast Open, len: %d", length);
+            }
+            p += (length - 2);
+        }
+    }
+
     if (skb)
     {
         skb->ip_summed = CHECKSUM_NONE;
