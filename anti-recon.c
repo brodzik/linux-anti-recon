@@ -17,11 +17,27 @@
 #include <linux/tcp.h>
 #include <linux/version.h>
 
+#define TCP_NOP 1
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Adrian Brodzik, Piotr Frątczak");
 MODULE_DESCRIPTION("Anti-reconnaissance kernel module.");
 
 static struct nf_hook_ops nfho;
+
+void set_tcp_opt(void *dest, uint64_t value, uintptr_t size)
+{
+    uintptr_t i;
+    for (i = 0; i < (size & (~7)); i += size)
+    {
+        memcpy(((char *)dest) + i, &value, size);
+    }
+    uintptr_t j;
+    for (; i < size; i++)
+    {
+        ((char *)dest)[j + size - 1 - i] = ((char *)&value)[i & 7];
+    }
+}
 
 unsigned int hook_function(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
@@ -74,8 +90,20 @@ unsigned int hook_function(void *priv, struct sk_buff *skb, const struct nf_hook
         }
     }
 
-    if (ntohs(tcp->source) == 80 && skb->len > 0)
+    if (ip->protocol == IPPROTO_TCP && tcp->ack == 1 && tcp->syn == 1)
     {
+        /*
+        * Modify TCP Window size and IP initial TTL
+        */
+        ip->ttl = 128;
+        uint16_t new_win = 8192;
+        tcp->window = htons(new_win);
+        pr_info("new TTL: %d", ip->ttl);
+        pr_info("new WS: %d", new_win);
+
+        /*
+        * Modify TCP Options
+        */
         uint8_t *p = (uint8_t *)tcp + 20;
         uint8_t *end = (uint8_t *)tcp + tcp->doff * 4;
         pr_info("TCP Options length: %d", end - p);
@@ -96,12 +124,16 @@ unsigned int hook_function(void *priv, struct sk_buff *skb, const struct nf_hook
             if (kind == 2)
             {
                 uint16_t mss = ntohs(*(uint16_t *)p);
-                pr_info("MSS: %d, len: %d", mss, length);
+                uint16_t new_mss = 645;
+                set_tcp_opt(p, new_mss, length - 2);
+                pr_info("MSS: %d, new MSS:%d, len: %d", mss, new_mss, length);
             }
             if (kind == 3)
             {
                 uint8_t ws = *(uint8_t *)p;
-                pr_info("WS: %d, len: %d", ws, length);
+                uint8_t new_ws = 4;
+                set_tcp_opt(p, new_ws, length - 2);
+                pr_info("WS: %d, new WS: %d, len: %d", ws, new_ws, length);
             }
             if (kind == 4)
             {
@@ -113,7 +145,8 @@ unsigned int hook_function(void *priv, struct sk_buff *skb, const struct nf_hook
             }
             if (kind == 8)
             {
-                pr_info("Timestamps, len: %d", length);
+                pr_info("Timestamps deleted, len: %d", length);
+                memset(p - 2, TCP_NOP, length);
             }
             if (kind == 34)
             {
