@@ -10,3 +10,6 @@ Linux anti-reconnaissance kernel module. Mitigates OS fingerprinting and service
 - `make run` - load module
 - dmesg - print kernel log
 - `make clean` - unload module and clean directory
+
+## Disclaimer
+This is a proof-of-concept, contains hardcoded strings and version identifiers, and may not work on some Linux distributions.
